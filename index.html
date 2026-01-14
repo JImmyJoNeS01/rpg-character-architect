@@ -531,3 +531,26 @@
     </script>
 </body>
 </html>
+
+/* --- New: Combat Stats Bar --- */
+.combat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    margin-top: 25px;
+    margin-bottom: 10px;
+}
+.combat-box {
+    background: #333; /* สีพื้นหลังเข้มกว่า Stat หลักนิดนึง */
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+    border: 1px solid #555;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+.combat-label {
+    font-size: 0.7rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px;
+}
+.combat-value {
+    font-size: 1.5rem; font-weight: bold; color: #c5a059; /* สีทอง */
+}
