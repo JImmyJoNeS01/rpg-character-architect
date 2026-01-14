@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Character Architect v6 (With Graph)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* --- Dark Fantasy Theme --- */
+        body {
+            background-color: #0d0d0d;
+            color: #d4d4d4;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: #c5a059;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #c5a059;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 750px;
+            background: #1a1a1a;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.9);
+            margin-bottom: 50px;
+        }
+
+        .input-group { margin-bottom: 15px; }
+
+        label {
+            font-weight: bold;
+            color: #c5a059;
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px;
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            height: 48px;
+        }
+        
+        input[type="text"]:focus, select:focus {
+            border-color: #c5a059;
+            outline: none;
+        }
+
+        /* Flex Row */
+        .flex-row { display: flex; gap: 10px; align-items: center; }
+        .flex-grow { flex-grow: 1; }
+
+        /* Dice Toggle Button */
+        .dice-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 4px;
+            width: 48px;
+            height: 48px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .dice-toggle input { display: none; }
+
+        .dice-icon {
+            font-size: 1.8rem;
+            filter: grayscale(100%) opacity(0.3);
+            transition: 0.3s;
+        }
+
+        .dice-toggle:has(input:checked) {
+            border-color: #c5a059;
+            background: rgba(197, 160, 89, 0.1);
+            box-shadow: 0 0 10px rgba(197, 160, 89, 0.2);
+        }
+
+        .dice-toggle:has(input:checked) .dice-icon {
+            filter: grayscale(0%) opacity(1);
+            transform: scale(1.1);
+        }
+
+        /* Button */
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #c5a059, #b88a38);
+            color: #0d0d0d;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-top: 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(197, 160, 89, 0.5);
+        }
+
+        /* Stat Grid */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        @media (max-width: 600px) {
+            .stat-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        .stat-box {
+            background: #222;
+            padding: 15px 5px;
+            border-radius: 5px;
+            text-align: center;
+            border: 1px solid #444;
+            position: relative;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #888;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #fff;
+            line-height: 1;
+        }
+
+        .stat-detail {
+            font-size: 0.75rem;
+            color: #666;
+            margin-bottom: 5px;
+            min-height: 1.2em;
+        }
+        
+        .bonus-text { color: #4caf50; font-weight: bold; }
+
+        .stat-mod {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-top: 5px;
+            padding: 2px 10px;
+            border-radius: 4px;
+            background: rgba(0,0,0,0.3);
+            display: inline-block;
+        }
+
+        .mod-pos { color: #4caf50; }
+        .mod-neg { color: #e53935; }
+        .mod-neu { color: #aaa; }
+
+        .stat-primary {
+            border: 1px solid #c5a059;
+            background: linear-gradient(135deg, #2a251a, #1a1a1a);
+            box-shadow: inset 0 0 15px rgba(197, 160, 89, 0.15);
+        }
+        .stat-secondary {
+            border: 1px solid #777;
+            background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+        }
+
+        .badge {
+            position: absolute;
+            top: -8px; right: -8px;
+            color: #111;
+            font-size: 0.6rem; padding: 3px 8px;
+            border-radius: 12px; font-weight: 800;
+            z-index: 2;
+            text-transform: uppercase;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .badge-primary { background: #c5a059; }
+        .badge-secondary { background: #a8a8a8; }
+        .capped-value { color: #777; }
+
+        /* Graph Container */
+        .chart-container {
+            position: relative;
+            height: 350px;
+            width: 100%;
+            margin-top: 30px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .log-area {
+            margin-top: 25px;
+            font-size: 0.85rem;
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            border-top: 1px solid #333;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Character Architect</h1>
+
+        <div class="input-group">
+            <label for="charName">Character Name:</label>
+            <input type="text" id="charName" placeholder="Enter name...">
+        </div>
+
+        <div class="input-group">
+            <label>Race (Affects Stats):</label>
+            <div class="flex-row">
+                <div class="flex-grow">
+                    <select id="raceSelect">
+                        <option value="Human">Human (+1 All)</option>
+                        <option value="Elf">Elf (+2 Dex)</option>
+                        <option value="Dwarf">Dwarf (+2 Con)</option>
+                        <option value="Halfling">Halfling (+2 Dex)</option>
+                        <option value="Dragonborn">Dragonborn (+2 Str, +1 Cha)</option>
+                        <option value="Gnome">Gnome (+2 Int)</option>
+                        <option value="Half-Orc">Half-Orc (+2 Str, +1 Con)</option>
+                        <option value="Tiefling">Tiefling (+2 Cha, +1 Int)</option>
+                    </select>
+                </div>
+                <label class="dice-toggle" title="Randomize Race?">
+                    <input type="checkbox" id="randomRaceCheck" checked>
+                    <span class="dice-icon">🎲</span>
+                </label>
+            </div>
+        </div>
+        
+        <div class="input-group">
+            <label>Class (Determines Priority):</label>
+            <div class="flex-row">
+                <div class="flex-grow">
+                    <select id="classSelect">
+                        <option value="none">-- Select Class --</option>
+                        <option value="barbarian">Barbarian (Primary: Str)</option>
+                        <option value="fighter">Fighter (Primary: Str)</option>
+                        <option value="rogue">Rogue (Primary: Dex)</option>
+                        <option value="wizard">Wizard (Primary: Int)</option>
+                        <option value="cleric">Cleric (Primary: Wis)</option>
+                    </select>
+                </div>
+                <label class="dice-toggle" title="Randomize Class?">
+                    <input type="checkbox" id="randomClassCheck">
+                    <span class="dice-icon">🎲</span>
+                </label>
+            </div>
+        </div>
+
+        <button id="rollBtn">🎲 Roll & Build Character</button>
+
+        <div class="stat-grid" id="statContainer"></div>
+
+        <div class="chart-container">
+            <canvas id="statChart"></canvas>
+        </div>
+
+        <div class="log-area" id="rollLog">
+            Ready. Graph will update upon rolling.
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            const abilities = ["Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"];
+            
+            // Race Configuration
+            const raceConfig = {
+                "Human": { "Strength": 1, "Dexterity": 1, "Constitution": 1, "Intelligence": 1, "Wisdom": 1, "Charisma": 1 },
+                "Elf": { "Dexterity": 2 },
+                "Dwarf": { "Constitution": 2 },
+                "Halfling": { "Dexterity": 2 },
+                "Dragonborn": { "Strength": 2, "Charisma": 1 },
+                "Gnome": { "Intelligence": 2 },
+                "Half-Orc": { "Strength": 2, "Constitution": 1 },
+                "Tiefling": { "Charisma": 2, "Intelligence": 1 }
+            };
+            const raceList = Object.keys(raceConfig);
+
+            // Class Configuration
+            const classConfig = {
+                "barbarian": { primary: ["Strength"], secondary: ["Constitution", "Dexterity"] },
+                "fighter":   { primary: ["Strength"], secondary: ["Constitution", "Dexterity"] },
+                "rogue":     { primary: ["Dexterity"], secondary: ["Intelligence", "Constitution"] },
+                "wizard":    { primary: ["Intelligence"], secondary: ["Constitution", "Wisdom"] },
+                "cleric":    { primary: ["Wisdom"], secondary: ["Constitution", "Strength"] }
+            };
+            const classList = Object.keys(classConfig);
+
+            // Elements
+            const container = document.getElementById('statContainer');
+            const classSelect = document.getElementById('classSelect');
+            const raceSelect = document.getElementById('raceSelect');
+            const randomRaceCheck = document.getElementById('randomRaceCheck');
+            const randomClassCheck = document.getElementById('randomClassCheck');
+            const rollBtn = document.getElementById('rollBtn');
+            const logArea = document.getElementById('rollLog');
+
+            // --- CHART.JS SETUP ---
+            let myChart = null;
+
+            function initChart() {
+                const ctx = document.getElementById('statChart').getContext('2d');
+                myChart = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: abilities,
+                        datasets: [{
+                            label: 'Ability Scores',
+                            data: [10, 10, 10, 10, 10, 10], // Default values
+                            backgroundColor: 'rgba(197, 160, 89, 0.2)', // Semi-transparent Gold
+                            borderColor: '#c5a059', // Solid Gold
+                            pointBackgroundColor: '#c5a059',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: '#c5a059'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                min: 0,
+                                max: 20, // Max standard stat
+                                angleLines: {
+                                    color: '#333' // Lines radiating from center
+                                },
+                                grid: {
+                                    color: '#333' // Circular grid lines
+                                },
+                                pointLabels: {
+                                    color: '#c5a059', // Label colors (STR, DEX...)
+                                    font: {
+                                        size: 12,
+                                        weight: 'bold'
+                                    }
+                                },
+                                ticks: {
+                                    display: false, // Hide numbers on axis line
+                                    backdropColor: 'transparent'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false // Hide legend box
+                            }
+                        }
+                    }
+                });
+            }
+
+            // --- UI Init ---
+            function initGrid() {
+                container.innerHTML = '';
+                abilities.forEach(attr => {
+                    const box = document.createElement('div');
+                    box.className = 'stat-box';
+                    box.id = `box-${attr}`;
+                    box.innerHTML = `
+                        <div class="stat-label">${attr}</div>
+                        <div class="stat-value" id="val-${attr}">-</div>
+                        <div class="stat-detail" id="detail-${attr}"></div>
+                        <div class="stat-mod mod-neu" id="mod-${attr}">+0</div>
+                    `;
+                    container.appendChild(box);
+                });
+            }
+
+            // --- Dice Logic ---
+            function roll4d6DropLowest() {
+                let rolls = [];
+                for (let i = 0; i < 4; i++) { rolls.push(Math.floor(Math.random() * 6) + 1); }
+                rolls.sort((a, b) => a - b);
+                rolls.shift(); 
+                return rolls.reduce((a, b) => a + b, 0);
+            }
+
+            function getModifier(score) {
+                return Math.floor((score - 10) / 2);
+            }
+
+            // --- Main Roll Function ---
+            function rollAll() {
+                // 1. Randomization Checks
+                if (randomRaceCheck.checked) {
+                    raceSelect.value = raceList[Math.floor(Math.random() * raceList.length)];
+                }
+                if (randomClassCheck.checked) {
+                    classSelect.value = classList[Math.floor(Math.random() * classList.length)];
+                }
+
+                const currentRace = raceSelect.value;
+                const raceBonuses = raceConfig[currentRace] || {};
+                const selectedClass = classSelect.value;
+
+                // 2. Base Rolls
+                let baseScores = [];
+                for (let i = 0; i < 6; i++) { baseScores.push(roll4d6DropLowest()); }
+                baseScores.sort((a, b) => b - a);
+
+                // 3. Determine Order
+                let fillOrder = [];
+                let primaryStats = [];
+                let secondaryStats = [];
+
+                if (selectedClass !== "none" && classConfig[selectedClass]) {
+                    const config = classConfig[selectedClass];
+                    primaryStats = config.primary;
+                    secondaryStats = config.secondary;
+                    
+                    fillOrder = [...primaryStats, ...secondaryStats];
+                    abilities.forEach(a => { if (!fillOrder.includes(a)) fillOrder.push(a); });
+                } else {
+                    fillOrder = [...abilities];
+                }
+
+                // 4. Reset UI styles
+                abilities.forEach(attr => {
+                    const box = document.getElementById(`box-${attr}`);
+                    box.className = 'stat-box'; 
+                    const badge = box.querySelector('.badge');
+                    if(badge) badge.remove();
+                });
+
+                // Prepare data for Chart
+                let chartDataMap = {}; // Temporary map to hold final values by name
+
+                // 5. Calculate & Render
+                fillOrder.forEach((attr, index) => {
+                    let baseVal = baseScores[index];
+                    const raceBonus = raceBonuses[attr] || 0;
+                    
+                    const isPrimary = primaryStats.includes(attr);
+                    const isSecondary = secondaryStats.includes(attr);
+                    
+                    let finalVal = baseVal + raceBonus;
+                    let displayDetail = `Base: ${baseVal}`;
+
+                    // Capping Logic
+                    if (selectedClass !== "none" && !isPrimary && !isSecondary) {
+                        if (finalVal > 10) {
+                            finalVal = 10;
+                            displayDetail = `Capped at 10`; 
+                        } else if (raceBonus > 0) {
+                            displayDetail += ` <span class="bonus-text">+${raceBonus} Race</span>`;
+                        }
+                    } else {
+                        if (raceBonus > 0) displayDetail += ` <span class="bonus-text">+${raceBonus} Race</span>`;
+                    }
+
+                    // Save for Chart
+                    chartDataMap[attr] = finalVal;
+
+                    // Update DOM
+                    document.getElementById(`val-${attr}`).innerText = finalVal;
+                    document.getElementById(`detail-${attr}`).innerHTML = displayDetail;
+
+                    const mod = getModifier(finalVal);
+                    const modText = mod >= 0 ? `+${mod}` : `${mod}`;
+                    const modEl = document.getElementById(`mod-${attr}`);
+                    modEl.innerText = modText;
+                    modEl.className = 'stat-mod ' + (mod > 0 ? 'mod-pos' : (mod < 0 ? 'mod-neg' : 'mod-neu'));
+
+                    const boxEl = document.getElementById(`box-${attr}`);
+                    if (isPrimary) {
+                        boxEl.classList.add('stat-primary');
+                        boxEl.insertAdjacentHTML('beforeend', '<div class="badge badge-primary">Primary</div>');
+                        document.getElementById(`val-${attr}`).classList.remove('capped-value');
+                    } else if (isSecondary) {
+                        boxEl.classList.add('stat-secondary');
+                        boxEl.insertAdjacentHTML('beforeend', '<div class="badge badge-secondary">Secondary</div>');
+                        document.getElementById(`val-${attr}`).classList.remove('capped-value');
+                    } else if (selectedClass !== "none") {
+                        document.getElementById(`val-${attr}`).classList.add('capped-value');
+                    }
+                });
+
+                // 6. Update Chart
+                // Must map values back to the original order of 'abilities' array [Str, Dex, Con...]
+                const chartDataArray = abilities.map(attr => chartDataMap[attr]);
+                
+                myChart.data.datasets[0].data = chartDataArray;
+                myChart.update();
+
+                logArea.innerHTML = `Built <b>${currentRace} ${selectedClass !== "none" ? selectedClass : "Adventurer"}</b> named <b>${document.getElementById('charName').value || "Unknown"}</b>.`;
+            }
+
+            initGrid();
+            initChart(); // Start the empty chart
+            rollBtn.addEventListener('click', rollAll);
+        });
+    </script>
+</body>
+</html>
