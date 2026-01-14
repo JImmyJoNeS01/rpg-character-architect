@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RPG Character Architect v6 (With Graph)</title>
+    <title>RPG Character Architect v7 (Combat Ready)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
@@ -127,7 +127,7 @@
             box-shadow: 0 0 20px rgba(197, 160, 89, 0.5);
         }
 
-        /* Stat Grid */
+        /* --- Stat Grid --- */
         .stat-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -210,12 +210,35 @@
         .badge-secondary { background: #a8a8a8; }
         .capped-value { color: #777; }
 
+        /* --- Combat Stats Bar --- */
+        .combat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+        .combat-box {
+            background: #252525;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            border: 1px solid #555;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+        }
+        .combat-label {
+            font-size: 0.7rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;
+        }
+        .combat-value {
+            font-size: 1.5rem; font-weight: bold; color: #c5a059;
+        }
+
         /* Graph Container */
         .chart-container {
             position: relative;
             height: 350px;
             width: 100%;
-            margin-top: 30px;
+            margin-top: 20px;
             display: flex;
             justify-content: center;
         }
@@ -242,18 +265,18 @@
         </div>
 
         <div class="input-group">
-            <label>Race (Affects Stats):</label>
+            <label>Race (Affects Stats & Speed):</label>
             <div class="flex-row">
                 <div class="flex-grow">
                     <select id="raceSelect">
-                        <option value="Human">Human (+1 All)</option>
-                        <option value="Elf">Elf (+2 Dex)</option>
-                        <option value="Dwarf">Dwarf (+2 Con)</option>
-                        <option value="Halfling">Halfling (+2 Dex)</option>
-                        <option value="Dragonborn">Dragonborn (+2 Str, +1 Cha)</option>
-                        <option value="Gnome">Gnome (+2 Int)</option>
-                        <option value="Half-Orc">Half-Orc (+2 Str, +1 Con)</option>
-                        <option value="Tiefling">Tiefling (+2 Cha, +1 Int)</option>
+                        <option value="Human">Human (+1 All, Spd 30)</option>
+                        <option value="Elf">Elf (+2 Dex, Spd 30)</option>
+                        <option value="Dwarf">Dwarf (+2 Con, Spd 25)</option>
+                        <option value="Halfling">Halfling (+2 Dex, Spd 25)</option>
+                        <option value="Dragonborn">Dragonborn (+2 Str/+1 Cha, Spd 30)</option>
+                        <option value="Gnome">Gnome (+2 Int, Spd 25)</option>
+                        <option value="Half-Orc">Half-Orc (+2 Str/+1 Con, Spd 30)</option>
+                        <option value="Tiefling">Tiefling (+2 Cha/+1 Int, Spd 30)</option>
                     </select>
                 </div>
                 <label class="dice-toggle" title="Randomize Race?">
@@ -264,16 +287,16 @@
         </div>
         
         <div class="input-group">
-            <label>Class (Determines Priority):</label>
+            <label>Class (Determines Priority & HP):</label>
             <div class="flex-row">
                 <div class="flex-grow">
                     <select id="classSelect">
                         <option value="none">-- Select Class --</option>
-                        <option value="barbarian">Barbarian (Primary: Str)</option>
-                        <option value="fighter">Fighter (Primary: Str)</option>
-                        <option value="rogue">Rogue (Primary: Dex)</option>
-                        <option value="wizard">Wizard (Primary: Int)</option>
-                        <option value="cleric">Cleric (Primary: Wis)</option>
+                        <option value="barbarian">Barbarian (Str, d12 HP)</option>
+                        <option value="fighter">Fighter (Str, d10 HP)</option>
+                        <option value="rogue">Rogue (Dex, d8 HP)</option>
+                        <option value="wizard">Wizard (Int, d6 HP)</option>
+                        <option value="cleric">Cleric (Wis, d8 HP)</option>
                     </select>
                 </div>
                 <label class="dice-toggle" title="Randomize Class?">
@@ -287,12 +310,31 @@
 
         <div class="stat-grid" id="statContainer"></div>
 
+        <div class="combat-grid">
+            <div class="combat-box">
+                <div class="combat-label">HP (Level 1)</div>
+                <div class="combat-value" id="derived-hp">-</div>
+            </div>
+            <div class="combat-box">
+                <div class="combat-label">AC (Armor)</div>
+                <div class="combat-value" id="derived-ac">-</div>
+            </div>
+            <div class="combat-box">
+                <div class="combat-label">Initiative</div>
+                <div class="combat-value" id="derived-init">-</div>
+            </div>
+            <div class="combat-box">
+                <div class="combat-label">Speed</div>
+                <div class="combat-value" id="derived-speed">-</div>
+            </div>
+        </div>
+
         <div class="chart-container">
             <canvas id="statChart"></canvas>
         </div>
 
         <div class="log-area" id="rollLog">
-            Ready. Graph will update upon rolling.
+            Ready. Click Roll to generate attributes and derived stats.
         </div>
     </div>
 
@@ -301,26 +343,26 @@
             
             const abilities = ["Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"];
             
-            // Race Configuration
+            // Race Configuration (Updated with Bonuses Object and Speed)
             const raceConfig = {
-                "Human": { "Strength": 1, "Dexterity": 1, "Constitution": 1, "Intelligence": 1, "Wisdom": 1, "Charisma": 1 },
-                "Elf": { "Dexterity": 2 },
-                "Dwarf": { "Constitution": 2 },
-                "Halfling": { "Dexterity": 2 },
-                "Dragonborn": { "Strength": 2, "Charisma": 1 },
-                "Gnome": { "Intelligence": 2 },
-                "Half-Orc": { "Strength": 2, "Constitution": 1 },
-                "Tiefling": { "Charisma": 2, "Intelligence": 1 }
+                "Human": { bonuses: { "Strength": 1, "Dexterity": 1, "Constitution": 1, "Intelligence": 1, "Wisdom": 1, "Charisma": 1 }, speed: 30 },
+                "Elf": { bonuses: { "Dexterity": 2 }, speed: 30 },
+                "Dwarf": { bonuses: { "Constitution": 2 }, speed: 25 },
+                "Halfling": { bonuses: { "Dexterity": 2 }, speed: 25 },
+                "Dragonborn": { bonuses: { "Strength": 2, "Charisma": 1 }, speed: 30 },
+                "Gnome": { bonuses: { "Intelligence": 2 }, speed: 25 },
+                "Half-Orc": { bonuses: { "Strength": 2, "Constitution": 1 }, speed: 30 },
+                "Tiefling": { bonuses: { "Charisma": 2, "Intelligence": 1 }, speed: 30 }
             };
             const raceList = Object.keys(raceConfig);
 
-            // Class Configuration
+            // Class Configuration (Updated with Hit Die)
             const classConfig = {
-                "barbarian": { primary: ["Strength"], secondary: ["Constitution", "Dexterity"] },
-                "fighter":   { primary: ["Strength"], secondary: ["Constitution", "Dexterity"] },
-                "rogue":     { primary: ["Dexterity"], secondary: ["Intelligence", "Constitution"] },
-                "wizard":    { primary: ["Intelligence"], secondary: ["Constitution", "Wisdom"] },
-                "cleric":    { primary: ["Wisdom"], secondary: ["Constitution", "Strength"] }
+                "barbarian": { primary: ["Strength"], secondary: ["Constitution", "Dexterity"], hitDie: 12 },
+                "fighter":   { primary: ["Strength"], secondary: ["Constitution", "Dexterity"], hitDie: 10 },
+                "rogue":     { primary: ["Dexterity"], secondary: ["Intelligence", "Constitution"], hitDie: 8 },
+                "wizard":    { primary: ["Intelligence"], secondary: ["Constitution", "Wisdom"], hitDie: 6 },
+                "cleric":    { primary: ["Wisdom"], secondary: ["Constitution", "Strength"], hitDie: 8 }
             };
             const classList = Object.keys(classConfig);
 
@@ -344,9 +386,9 @@
                         labels: abilities,
                         datasets: [{
                             label: 'Ability Scores',
-                            data: [10, 10, 10, 10, 10, 10], // Default values
-                            backgroundColor: 'rgba(197, 160, 89, 0.2)', // Semi-transparent Gold
-                            borderColor: '#c5a059', // Solid Gold
+                            data: [10, 10, 10, 10, 10, 10], 
+                            backgroundColor: 'rgba(197, 160, 89, 0.2)', 
+                            borderColor: '#c5a059', 
                             pointBackgroundColor: '#c5a059',
                             pointBorderColor: '#fff',
                             pointHoverBackgroundColor: '#fff',
@@ -359,31 +401,17 @@
                         scales: {
                             r: {
                                 min: 0,
-                                max: 20, // Max standard stat
-                                angleLines: {
-                                    color: '#333' // Lines radiating from center
-                                },
-                                grid: {
-                                    color: '#333' // Circular grid lines
-                                },
+                                max: 20, 
+                                angleLines: { color: '#333' },
+                                grid: { color: '#333' },
                                 pointLabels: {
-                                    color: '#c5a059', // Label colors (STR, DEX...)
-                                    font: {
-                                        size: 12,
-                                        weight: 'bold'
-                                    }
+                                    color: '#c5a059', 
+                                    font: { size: 12, weight: 'bold' }
                                 },
-                                ticks: {
-                                    display: false, // Hide numbers on axis line
-                                    backdropColor: 'transparent'
-                                }
+                                ticks: { display: false, backdropColor: 'transparent' }
                             }
                         },
-                        plugins: {
-                            legend: {
-                                display: false // Hide legend box
-                            }
-                        }
+                        plugins: { legend: { display: false } }
                     }
                 });
             }
@@ -429,7 +457,8 @@
                 }
 
                 const currentRace = raceSelect.value;
-                const raceBonuses = raceConfig[currentRace] || {};
+                const raceData = raceConfig[currentRace] || { bonuses: {}, speed: 30 };
+                const raceBonuses = raceData.bonuses;
                 const selectedClass = classSelect.value;
 
                 // 2. Base Rolls
@@ -461,10 +490,10 @@
                     if(badge) badge.remove();
                 });
 
-                // Prepare data for Chart
-                let chartDataMap = {}; // Temporary map to hold final values by name
+                // Map to store final values for Derived Stats calculation
+                let finalStatsMap = {};
 
-                // 5. Calculate & Render
+                // 5. Calculate & Render Attributes
                 fillOrder.forEach((attr, index) => {
                     let baseVal = baseScores[index];
                     const raceBonus = raceBonuses[attr] || 0;
@@ -487,8 +516,8 @@
                         if (raceBonus > 0) displayDetail += ` <span class="bonus-text">+${raceBonus} Race</span>`;
                     }
 
-                    // Save for Chart
-                    chartDataMap[attr] = finalVal;
+                    // Save for derived calculations
+                    finalStatsMap[attr] = finalVal;
 
                     // Update DOM
                     document.getElementById(`val-${attr}`).innerText = finalVal;
@@ -514,10 +543,34 @@
                     }
                 });
 
-                // 6. Update Chart
-                // Must map values back to the original order of 'abilities' array [Str, Dex, Con...]
-                const chartDataArray = abilities.map(attr => chartDataMap[attr]);
-                
+                // 6. Calculate Derived Stats (Combat Stats)
+                const dexScore = finalStatsMap["Dexterity"];
+                const conScore = finalStatsMap["Constitution"];
+                const dexMod = getModifier(dexScore);
+                const conMod = getModifier(conScore);
+
+                // HP = Hit Die + Con Mod (Min 1)
+                let hitDie = (selectedClass !== "none" && classConfig[selectedClass]) ? classConfig[selectedClass].hitDie : 8; // Default d8
+                let hp = hitDie + conMod;
+                if (hp < 1) hp = 1;
+
+                // AC = 10 + Dex Mod (Unarmored Defense)
+                let ac = 10 + dexMod;
+
+                // Initiative = Dex Mod
+                let init = dexMod >= 0 ? `+${dexMod}` : dexMod;
+
+                // Speed
+                let speed = raceData.speed || 30;
+
+                // Update Derived Stats DOM
+                document.getElementById('derived-hp').innerText = hp;
+                document.getElementById('derived-ac').innerText = ac;
+                document.getElementById('derived-init').innerText = init;
+                document.getElementById('derived-speed').innerText = speed + " ft.";
+
+                // 7. Update Chart
+                const chartDataArray = abilities.map(attr => finalStatsMap[attr]);
                 myChart.data.datasets[0].data = chartDataArray;
                 myChart.update();
 
@@ -525,32 +578,9 @@
             }
 
             initGrid();
-            initChart(); // Start the empty chart
+            initChart(); 
             rollBtn.addEventListener('click', rollAll);
         });
     </script>
 </body>
 </html>
-
-/* --- New: Combat Stats Bar --- */
-.combat-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 15px;
-    margin-top: 25px;
-    margin-bottom: 10px;
-}
-.combat-box {
-    background: #333; /* สีพื้นหลังเข้มกว่า Stat หลักนิดนึง */
-    padding: 10px;
-    border-radius: 5px;
-    text-align: center;
-    border: 1px solid #555;
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-}
-.combat-label {
-    font-size: 0.7rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px;
-}
-.combat-value {
-    font-size: 1.5rem; font-weight: bold; color: #c5a059; /* สีทอง */
-}
